@@ -19,15 +19,8 @@
       "dest": "/api/index.ts"
     },
     {
-      "src": "/uploads/(.*)",
-      "dest": "/api/index.ts"
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "/$1"
     }
   ]
 }

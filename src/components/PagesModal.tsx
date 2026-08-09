@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { sendContactMessage } from '../lib/api';
 import {
   X,
   Info,
@@ -52,11 +53,7 @@ export const PagesModal: React.FC<PagesModalProps> = ({
     e.preventDefault();
     setSubmitting(true);
     try {
-      await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
+      await sendContactMessage(formData);
       setSubmitted(true);
       setFormData({ name: '', email: '', phone: '', subject: 'General Query', message: '' });
     } catch (err) {

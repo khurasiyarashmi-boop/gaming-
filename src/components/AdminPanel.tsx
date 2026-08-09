@@ -1,6 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Game, Category, SiteSettings, ContactMessage, AnalyticsData, MediaItem, AppStatus } from '../types';
 import {
+  adminLogin,
+  fetchAdminGames,
+  fetchCategories,
+  fetchAdminMessages,
+  fetchAdminMedia,
+  saveAdminSettings,
+  saveAdminGame,
+  deleteAdminGame,
+  saveAdminCategory,
+  deleteAdminCategory
+} from '../lib/api';
+import {
   X,
   Lock,
   BarChart3,
@@ -128,47 +140,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const fetchAdminData = async () => {
     if (!token) return;
     try {
-      // Fetch analytics
-      const resStats = await fetch('/api/admin/analytics', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (resStats.ok) {
-        const statsData = await resStats.json();
-        setAnalytics(statsData);
-      } else if (resStats.status === 401) {
-        handleLogout();
-        return;
-      }
+      // Fetch data in parallel
+      const [gList, cList, mList, mediaList] = await Promise.all([
+        fetchAdminGames(token),
+        fetchCategories(),
+        fetchAdminMessages(token),
+        fetchAdminMedia(token)
+      ]);
 
-      // Fetch all games (including drafts)
-      const resGames = await fetch('/api/admin/games', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (resGames.ok) {
-        setGames(await resGames.json());
-      }
+      if (gList) setGames(gList);
+      if (cList) setCategories(cList);
+      if (mList) setMessages(mList);
+      if (mediaList) setMediaItems(mediaList);
 
-      // Fetch categories
-      const resCats = await fetch('/api/categories');
-      if (resCats.ok) {
-        setCategories(await resCats.json());
-      }
-
-      // Fetch messages
-      const resMsgs = await fetch('/api/admin/messages', {
-        headers: { Authorization: `Bearer ${token}` }
+      // Simple calculated analytics
+      const totalDownloads = (gList || []).reduce((acc, g) => acc + (g.downloadCount || 0), 0);
+      const totalClicks = (gList || []).reduce((acc, g) => acc + (g.clickCount || 0), 0);
+      setAnalytics({
+        totalDownloads,
+        totalClicks,
+        activeGames: (gList || []).filter(g => g.status === 'published').length,
+        pendingMessages: (mList || []).filter(m => !m.read).length
       });
-      if (resMsgs.ok) {
-        setMessages(await resMsgs.json());
-      }
-
-      // Fetch media items
-      const resMedia = await fetch('/api/admin/media', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (resMedia.ok) {
-        setMediaItems(await resMedia.json());
-      }
     } catch (err) {
       console.error(err);
     }
@@ -178,20 +171,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     e.preventDefault();
     setLoginError('');
     try {
-      const res = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(loginCreds)
-      });
-      const data = await res.json();
-      if (res.ok && data.token) {
-        setToken(data.token);
-        localStorage.setItem('admin_token', data.token);
+      const res = await adminLogin(loginCreds);
+      if (res.token) {
+        setToken(res.token);
+        localStorage.setItem('admin_token', res.token);
       } else {
-        setLoginError(data.error || 'Login failed');
+        setLoginError(res.error || 'Login failed');
       }
     } catch (err) {
-      setLoginError('Server connection error');
+      setLoginError('Login error occurred');
     }
   };
 
@@ -203,15 +191,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/admin/settings', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(settingsForm)
-      });
-      if (res.ok) {
+      const ok = await saveAdminSettings(token!, settingsForm);
+      if (ok) {
         setStatusMsg('Site settings & branding updated successfully!');
         onDataChanged();
         setTimeout(() => setStatusMsg(''), 3000);
@@ -304,24 +285,53 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     try {
       const isEdit = !!editingGame.id;
-      const url = isEdit ? `/api/admin/games/${editingGame.id}` : '/api/admin/games';
-      const method = isEdit ? 'PUT' : 'POST';
+      const fullGame: Game = {
+        ...(editingGame as Game),
+        id: editingGame.id || 'game-' + Date.now(),
+        ranking: editingGame.ranking || (games.length + 1),
+        name: editingGame.name || '',
+        slug: editingGame.slug || (editingGame.name ? editingGame.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'app'),
+        logo: editingGame.logo || '',
+        poster: editingGame.poster || '',
+        banner: editingGame.banner || '',
+        screenshots: editingGame.screenshots || [],
+        shortDescription: editingGame.shortDescription || editingGame.description || '',
+        description: editingGame.description || '',
+        category: editingGame.category || 'Rummy',
+        bonus: editingGame.bonus ?? 50,
+        bonusLabel: editingGame.bonusLabel || '₹50 Cash Bonus',
+        minWithdrawal: editingGame.minWithdrawal ?? 100,
+        rating: editingGame.rating ?? 4.8,
+        version: editingGame.version || 'v1.0.0',
+        apkSize: editingGame.apkSize || '35 MB',
+        packageName: editingGame.packageName || `com.jaiho.${editingGame.id || Date.now()}`,
+        developerName: editingGame.developerName || 'ALL JAIHO COMPANY',
+        downloadCount: editingGame.downloadCount || 0,
+        clickCount: editingGame.clickCount || 0,
+        lastUpdated: editingGame.lastUpdated || new Date().toISOString().split('T')[0],
+        createdAt: editingGame.createdAt || new Date().toISOString().split('T')[0],
+        updatedAt: new Date().toISOString().split('T')[0],
+        downloadType: dType as any,
+        googlePlayUrl: playUrl,
+        officialWebsiteUrl: webUrl,
+        directDownloadUrl: directUrl,
+        downloadUrl: effectiveDownloadUrl,
+        externalStoreUrl: playUrl || editingGame.externalStoreUrl || '',
+        officialWebsite: webUrl || editingGame.officialWebsite || '',
+        status: targetStatus || editingGame.status || 'published',
+        features: editingGame.features || ['100% Verified APK'],
+        withdrawalRules: editingGame.withdrawalRules || ['Min withdrawal ₹100'],
+        registrationGuide: editingGame.registrationGuide || ['Install & Sign Up']
+      };
 
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
+      const ok = await saveAdminGame(token!, fullGame, isEdit);
 
-      if (res.ok) {
+      if (ok) {
         await fetchAdminData();
         onDataChanged();
         setActiveTab('games');
         setStatusMsg(
-          payload.status === 'published'
+          fullGame.status === 'published'
             ? isEdit
               ? 'App updated and published to live site!'
               : 'New App published to live site!'
@@ -329,14 +339,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         );
         setTimeout(() => setStatusMsg(''), 4000);
       } else {
-        const err = await res.json();
-        const errorMsg = err.error || 'Failed to save app';
-        if (errorMsg.includes('Google Play')) {
-          setFormUrlError('Please enter a valid Google Play Store URL.');
-          alert('Please enter a valid Google Play Store URL.');
-        } else {
-          alert(errorMsg);
-        }
+        alert('Failed to save app');
       }
     } catch (err) {
       console.error(err);
@@ -348,47 +351,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleToggleStatus = async (game: Game, newStatus: AppStatus) => {
     try {
-      const res = await fetch(`/api/admin/games/${game.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
-      if (res.ok) {
-        fetchAdminData();
-        onDataChanged();
-      }
+      await saveAdminGame(token!, { ...game, status: newStatus }, true);
+      fetchAdminData();
+      onDataChanged();
     } catch (err) {
       console.error(err);
     }
   };
 
   const handleDuplicateGame = async (game: Game) => {
-    const copyGame: Partial<Game> = {
+    const copyGame: Game = {
       ...game,
-      id: undefined,
+      id: 'game-' + Date.now(),
       name: `${game.name} (Copy)`,
-      slug: `${game.slug || 'app'}-copy`,
+      slug: `${game.slug || 'app'}-copy-${Date.now()}`,
       status: 'draft',
       downloadCount: 0
     };
     try {
-      const res = await fetch('/api/admin/games', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(copyGame)
-      });
-      if (res.ok) {
-        fetchAdminData();
-        onDataChanged();
-        setStatusMsg('App duplicated as Draft!');
-        setTimeout(() => setStatusMsg(''), 3000);
-      }
+      await saveAdminGame(token!, copyGame, false);
+      fetchAdminData();
+      onDataChanged();
+      setStatusMsg('App duplicated as Draft!');
+      setTimeout(() => setStatusMsg(''), 3000);
     } catch (err) {
       console.error(err);
     }
@@ -398,11 +383,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     if (!id) return;
     if (!confirm(`Are you sure you want to permanently delete "${appName || 'this application'}" from the database?`)) return;
     try {
-      const res = await fetch(`/api/admin/games/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
+      const ok = await deleteAdminGame(token!, id);
+      if (ok) {
         setStatusMsg('Application deleted successfully!');
         if (editingGame.id === id) {
           setEditingGame({
@@ -437,9 +419,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         await fetchAdminData();
         onDataChanged();
         setTimeout(() => setStatusMsg(''), 3000);
-      } else {
-        const err = await res.json();
-        alert(err.error || 'Failed to delete app.');
       }
     } catch (err) {
       console.error(err);
@@ -451,20 +430,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     e.preventDefault();
     if (!newCatName) return;
     try {
-      const res = await fetch('/api/admin/categories', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ name: newCatName, icon: newCatIcon, description: newCatDesc })
-      });
-      if (res.ok) {
-        setNewCatName('');
-        setNewCatDesc('');
-        fetchAdminData();
-        onDataChanged();
-      }
+      const newCat: Category = {
+        id: 'cat-' + Date.now(),
+        name: newCatName,
+        slug: newCatName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        icon: newCatIcon || 'Gamepad2',
+        description: newCatDesc || '',
+        gameCount: 0
+      };
+      await saveAdminCategory(token!, newCat, false);
+      setNewCatName('');
+      setNewCatDesc('');
+      fetchAdminData();
+      onDataChanged();
     } catch (err) {
       console.error(err);
     }
@@ -474,19 +452,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     e.preventDefault();
     if (!editingCategory) return;
     try {
-      const res = await fetch(`/api/admin/categories/${encodeURIComponent(editingCategory.id)}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(editingCategory)
-      });
-      if (res.ok) {
-        setEditingCategory(null);
-        fetchAdminData();
-        onDataChanged();
-      }
+      await saveAdminCategory(token!, editingCategory, true);
+      setEditingCategory(null);
+      fetchAdminData();
+      onDataChanged();
     } catch (err) {
       console.error(err);
     }
@@ -495,19 +464,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleDeleteCategory = async (id: string, name?: string) => {
     if (!confirm(`Are you sure you want to delete category "${name || 'this category'}"?`)) return;
     try {
-      const res = await fetch(`/api/admin/categories/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        setStatusMsg('Category deleted successfully!');
-        await fetchAdminData();
-        onDataChanged();
-        setTimeout(() => setStatusMsg(''), 3000);
-      } else {
-        const err = await res.json();
-        alert(err.error || 'Failed to delete category.');
-      }
+      await deleteAdminCategory(token!, id);
+      setStatusMsg('Category deleted successfully!');
+      await fetchAdminData();
+      onDataChanged();
+      setTimeout(() => setStatusMsg(''), 3000);
     } catch (err) {
       console.error(err);
       alert('Error occurred while deleting category.');

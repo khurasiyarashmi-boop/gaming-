@@ -12,6 +12,6 @@ export default defineConfig({
   },
   server: {
     // HMR is disabled in this cloud container environment
-    hmr: true,
+    hmr: false,
   },
 });

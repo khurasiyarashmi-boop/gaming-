@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Game, Category, SiteSettings, SortOption } from './types';
+import { fetchSiteSettings, fetchCategories, fetchGames, trackDownload } from './lib/api';
 
 // Components
 import { Header } from './components/Header';
@@ -107,31 +108,20 @@ export default function App() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Settings
-      const resSettings = await fetch('/api/settings');
-      if (resSettings.ok) {
-        const sData = await resSettings.json();
-        setSiteSettings(sData);
-      }
+      const [sData, cData, gList] = await Promise.all([
+        fetchSiteSettings(),
+        fetchCategories(),
+        fetchGames({
+          category: selectedCategory,
+          search: searchQuery,
+          filter: selectedFilter,
+          sort: selectedSort
+        })
+      ]);
 
-      // Categories
-      const resCats = await fetch('/api/categories');
-      if (resCats.ok) {
-        setCategories(await resCats.json());
-      }
-
-      // Games
-      const params = new URLSearchParams();
-      if (selectedCategory !== 'all') params.append('category', selectedCategory);
-      if (searchQuery) params.append('search', searchQuery);
-      if (selectedFilter !== 'all') params.append('filter', selectedFilter);
-      if (selectedSort) params.append('sort', selectedSort);
-
-      const resGames = await fetch(`/api/games?${params.toString()}`);
-      if (resGames.ok) {
-        const gData = await resGames.json();
-        setGames(gData.games || []);
-      }
+      if (sData) setSiteSettings(sData);
+      if (cData) setCategories(cData);
+      if (gList) setGames(gList);
     } catch (err) {
       console.error('Error fetching data:', err);
     } finally {
@@ -163,9 +153,7 @@ export default function App() {
   const handleDownloadClick = async (game: Game) => {
     setSelectedGameForDownload(game);
     try {
-      // track download count on server
-      await fetch(`/api/games/${game.id}/download`, { method: 'POST' });
-      // update local count
+      await trackDownload(game.id);
       setGames(prev =>
         prev.map(g => (g.id === game.id ? { ...g, downloadCount: g.downloadCount + 1 } : g))
       );
