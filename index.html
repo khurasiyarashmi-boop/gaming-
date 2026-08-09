@@ -3,6 +3,21 @@
   <head>
     <script>
       (function() {
+        var origConsoleError = console.error;
+        console.error = function() {
+          var args = Array.prototype.slice.call(arguments);
+          var msg = args.map(function(a) {
+            return typeof a === 'string' ? a : (a && a.message ? a.message : '');
+          }).join(' ');
+          if (
+            msg.indexOf('[vite] failed to connect to websocket') !== -1 ||
+            msg.indexOf('WebSocket closed without opened') !== -1
+          ) {
+            return;
+          }
+          origConsoleError.apply(console, arguments);
+        };
+
         function isViteOrWsError(err) {
           if (!err) return false;
           var str = '';
