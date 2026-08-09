@@ -4,6 +4,7 @@ import fs from 'fs';
 import jwt from 'jsonwebtoken';
 import { createServer as createViteServer } from 'vite';
 import { Game, Category, SiteSettings, ContactMessage, MediaItem, AppStatus } from './src/types';
+import { supabase } from './src/lib/supabase';
 
 const app = express();
 const PORT = 3000;
@@ -102,6 +103,92 @@ let db: DatabaseSchema = {
   ]
 };
 
+async function syncWithSupabase() {
+  if (!supabase) return;
+  try {
+    // Attempt loading from Supabase games table
+    const { data: gamesData } = await supabase.from('games').select('*');
+    if (gamesData && gamesData.length > 0) {
+      db.games = gamesData.map((g: any) => ({
+        id: g.id,
+        ranking: g.ranking ?? 0,
+        name: g.name,
+        slug: g.slug || g.id,
+        logo: g.logo || '',
+        poster: g.poster || '',
+        banner: g.banner || '',
+        screenshots: Array.isArray(g.screenshots) ? g.screenshots : [],
+        shortDescription: g.short_description || g.description || '',
+        description: g.description || '',
+        category: g.category || 'Rummy',
+        bonus: Number(g.bonus) || 0,
+        bonusLabel: g.bonus_label || '',
+        minWithdrawal: Number(g.min_withdrawal) || 0,
+        rating: Number(g.rating) || 4.8,
+        version: g.version || '1.0.0',
+        apkSize: g.apk_size || '35 MB',
+        packageName: g.package_name || `com.jaiho.${g.id}`,
+        developerName: g.developer_name || 'ALL JAIHO COMPANY',
+        downloadCount: Number(g.download_count) || 0,
+        clickCount: Number(g.click_count) || 0,
+        lastUpdated: g.last_updated || new Date().toISOString().split('T')[0],
+        createdAt: g.created_at || new Date().toISOString().split('T')[0],
+        updatedAt: g.updated_at || new Date().toISOString().split('T')[0],
+        downloadType: g.download_type || 'DIRECT_DOWNLOAD',
+        googlePlayUrl: g.google_play_url || '',
+        officialWebsiteUrl: g.official_website_url || '',
+        directDownloadUrl: g.direct_download_url || '',
+        externalStoreUrl: g.external_store_url || '',
+        downloadUrl: g.download_url || '',
+        telegramGroup: g.telegram_group || '',
+        officialWebsite: g.official_website || '',
+        isFeatured: !!g.is_featured,
+        isTrending: !!g.is_trending,
+        isNew: !!g.is_new,
+        status: g.status || 'published',
+        features: Array.isArray(g.features) ? g.features : [],
+        withdrawalRules: Array.isArray(g.withdrawal_rules) ? g.withdrawal_rules : [],
+        registrationGuide: Array.isArray(g.registration_guide) ? g.registration_guide : [],
+        faqs: Array.isArray(g.faqs) ? g.faqs : [],
+        reviews: Array.isArray(g.reviews) ? g.reviews : []
+      }));
+    }
+
+    const { data: catData } = await supabase.from('categories').select('*');
+    if (catData && catData.length > 0) {
+      db.categories = catData.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        icon: c.icon,
+        description: c.description,
+        gameCount: c.game_count
+      }));
+    }
+
+    const { data: setDb } = await supabase.from('site_settings').select('*').eq('id', 'default').single();
+    if (setDb) {
+      db.settings = {
+        siteName: setDb.site_name || db.settings.siteName,
+        siteTagline: setDb.site_tagline || db.settings.siteTagline,
+        telegramLink: setDb.telegram_link || db.settings.telegramLink,
+        noticeTitle: setDb.notice_title || db.settings.noticeTitle,
+        noticeContent: setDb.notice_content || db.settings.noticeContent,
+        restrictedStates: Array.isArray(setDb.restricted_states) ? setDb.restricted_states : db.settings.restrictedStates,
+        maintenanceMode: !!setDb.maintenance_mode,
+        contactEmail: setDb.contact_email || db.settings.contactEmail,
+        contactPhone: setDb.contact_phone || db.settings.contactPhone,
+        whatsappLink: setDb.whatsapp_link || db.settings.whatsappLink,
+        heroNotice: setDb.hero_notice || db.settings.heroNotice,
+        metaTitle: setDb.meta_title || db.settings.metaTitle,
+        metaDescription: setDb.meta_description || db.settings.metaDescription
+      };
+    }
+  } catch (err) {
+    console.log('Supabase load notice:', err);
+  }
+}
+
 function loadDatabase() {
   try {
     const tmpFile = path.join('/tmp', 'data', 'db.json');
@@ -134,6 +221,93 @@ function loadDatabase() {
   } catch (err) {
     console.error('Failed to load database, using defaults:', err);
   }
+
+  // Asynchronously try to load from Supabase if tables are created
+  syncWithSupabase().catch(() => {});
+}
+
+async function saveToSupabase() {
+  if (!supabase) return;
+  try {
+    // Save settings
+    await supabase.from('site_settings').upsert({
+      id: 'default',
+      site_name: db.settings.siteName,
+      site_tagline: db.settings.siteTagline,
+      telegram_link: db.settings.telegramLink,
+      notice_title: db.settings.noticeTitle,
+      notice_content: db.settings.noticeContent,
+      restricted_states: db.settings.restrictedStates,
+      maintenance_mode: db.settings.maintenanceMode,
+      contact_email: db.settings.contactEmail,
+      contact_phone: db.settings.contactPhone,
+      whatsapp_link: db.settings.whatsappLink,
+      hero_notice: db.settings.heroNotice,
+      meta_title: db.settings.metaTitle,
+      meta_description: db.settings.metaDescription
+    });
+
+    // Save categories
+    if (db.categories.length > 0) {
+      await supabase.from('categories').upsert(db.categories.map(c => ({
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        icon: c.icon,
+        description: c.description,
+        game_count: c.gameCount || 0
+      })));
+    }
+
+    // Save games
+    if (db.games.length > 0) {
+      await supabase.from('games').upsert(db.games.map(g => ({
+        id: g.id,
+        ranking: g.ranking,
+        name: g.name,
+        slug: g.slug,
+        logo: g.logo,
+        poster: g.poster,
+        banner: g.banner,
+        screenshots: g.screenshots,
+        short_description: g.shortDescription,
+        description: g.description,
+        category: g.category,
+        bonus: g.bonus,
+        bonus_label: g.bonusLabel,
+        min_withdrawal: g.minWithdrawal,
+        rating: g.rating,
+        version: g.version,
+        apk_size: g.apkSize,
+        package_name: g.packageName,
+        developer_name: g.developerName,
+        download_count: g.downloadCount,
+        click_count: g.clickCount,
+        last_updated: g.lastUpdated,
+        created_at: g.createdAt,
+        updated_at: g.updatedAt,
+        download_type: g.downloadType,
+        google_play_url: g.googlePlayUrl,
+        official_website_url: g.officialWebsiteUrl,
+        direct_download_url: g.directDownloadUrl,
+        external_store_url: g.externalStoreUrl,
+        download_url: g.downloadUrl,
+        telegram_group: g.telegramGroup,
+        official_website: g.officialWebsite,
+        is_featured: g.isFeatured,
+        is_trending: g.isTrending,
+        is_new: g.isNew,
+        status: g.status,
+        features: g.features,
+        withdrawal_rules: g.withdrawalRules,
+        registration_guide: g.registrationGuide,
+        faqs: g.faqs,
+        reviews: g.reviews
+      })));
+    }
+  } catch (err) {
+    console.log('Supabase save notice:', err);
+  }
 }
 
 function saveDatabase() {
@@ -147,6 +321,8 @@ function saveDatabase() {
   } catch (err) {
     console.error('Failed to save database:', err);
   }
+
+  saveToSupabase().catch(() => {});
 }
 
 loadDatabase();
