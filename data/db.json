@@ -1,0 +1,126 @@
+{
+  "games": [],
+  "categories": [
+    {
+      "id": "cat-1",
+      "name": "Rummy",
+      "slug": "rummy",
+      "icon": "Spade",
+      "description": "Popular cash rummy games with instant bank withdrawals.",
+      "gameCount": 0
+    },
+    {
+      "id": "cat-2",
+      "name": "Teen Patti",
+      "slug": "teen-patti",
+      "icon": "Coins",
+      "description": "Classic 3-card poker games with high daily sign up bonuses.",
+      "gameCount": 0
+    },
+    {
+      "id": "cat-3",
+      "name": "Slots",
+      "slug": "slots",
+      "icon": "Dices",
+      "description": "Vegas style slot machines with huge progressive jackpots.",
+      "gameCount": 0
+    },
+    {
+      "id": "cat-4",
+      "name": "Aviator",
+      "slug": "aviator",
+      "icon": "Plane",
+      "description": "High multiplier crash games with real-time payout tracking.",
+      "gameCount": 0
+    },
+    {
+      "id": "cat-5",
+      "name": "Casino",
+      "slug": "casino",
+      "icon": "Crown",
+      "description": "Live dealer roulette, blackjack, and baccarat tables.",
+      "gameCount": 0
+    },
+    {
+      "id": "cat-6",
+      "name": "Fantasy Sports",
+      "slug": "fantasy-sports",
+      "icon": "Trophy",
+      "description": "Cricket & football fantasy leagues with big mega contests.",
+      "gameCount": 0
+    },
+    {
+      "id": "cat-7",
+      "name": "Arcade",
+      "slug": "arcade",
+      "icon": "Gamepad2",
+      "description": "Ludo, Carrom, Snake, and quick casual skill gaming apps.",
+      "gameCount": 0
+    },
+    {
+      "id": "cat-8",
+      "name": "Fishing",
+      "slug": "fishing",
+      "icon": "Fish",
+      "description": "Ocean shooting & deep sea fish hunting games.",
+      "gameCount": 0
+    },
+    {
+      "id": "cat-9",
+      "name": "Mines",
+      "slug": "mines",
+      "icon": "Bomb",
+      "description": "Strategic grid minefield cash games with customizable risk.",
+      "gameCount": 0
+    },
+    {
+      "id": "cat-10",
+      "name": "Poker",
+      "slug": "poker",
+      "icon": "Flame",
+      "description": "Texas Holdem and Omaha high-stakes tournament tables.",
+      "gameCount": 0
+    },
+    {
+      "id": "cat-11",
+      "name": "Color Prediction",
+      "slug": "color-prediction",
+      "icon": "Palette",
+      "description": "Fast 1-minute color guess & win apps with instant payouts.",
+      "gameCount": 0
+    },
+    {
+      "id": "cat-12",
+      "name": "Bingo",
+      "slug": "bingo",
+      "icon": "Sparkles",
+      "description": "Fun multiplayer bingo rooms with daily free cards.",
+      "gameCount": 0
+    }
+  ],
+  "settings": {
+    "siteName": "ALL JAIHO COMPANY",
+    "siteTagline": "India's #1 Real Cash Gaming Directory & Verified APK Downloads",
+    "telegramLink": "https://t.me/Soumy_6263",
+    "noticeTitle": "IMPORTANT LEGAL NOTICE & RESPONSIBLE GAMING WARNING",
+    "noticeContent": "Real money gaming involves financial risk and may be addictive. Play responsibly and at your own risk. This platform lists verified APKs for skill-based gaming applications. Online real money gaming is strictly restricted for users under 18 years of age and residents of Assam, Odisha, Telangana, Nagaland, Sikkim, and Andhra Pradesh.",
+    "restrictedStates": [
+      "Assam",
+      "Odisha",
+      "Telangana",
+      "Nagaland",
+      "Sikkim",
+      "Andhra Pradesh"
+    ],
+    "maintenanceMode": false,
+    "contactEmail": "support@alljaihocompany.com",
+    "contactPhone": "+91 98765 43210",
+    "whatsappLink": "https://wa.me/919876543210",
+    "heroNotice": "⚡ 100% Verified APKs • Instant ₹51-₹500 Sign Up Bonuses • Fast Downloads",
+    "metaTitle": "ALL JAIHO COMPANY - Download Real Cash Rummy, Teen Patti & Casino Games APK",
+    "metaDescription": "Download 100% safe & verified gaming APKs. Best Real Cash Rummy, Teen Patti, Aviator, Slots, and Fantasy Sports apps with highest sign up bonuses & instant bank withdrawals."
+  },
+  "contactMessages": [],
+  "downloadStats": {},
+  "mediaItems": []
+}

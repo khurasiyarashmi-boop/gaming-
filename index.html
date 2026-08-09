@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script>
+      (function() {
+        function isViteOrWsError(err) {
+          if (!err) return false;
+          var str = '';
+          try {
+            if (typeof err === 'string') str = err;
+            else if (err.message) str = err.message;
+            else if (err.reason) str = typeof err.reason === 'string' ? err.reason : (err.reason && err.reason.message) || String(err.reason);
+            else str = String(err);
+          } catch (e) {
+            str = String(err);
+          }
+          var lower = str.toLowerCase();
+          return (
+            lower.indexOf('websocket') !== -1 ||
+            lower.indexOf('vite') !== -1 ||
+            lower.indexOf('hmr') !== -1 ||
+            lower.indexOf('closed without opened') !== -1 ||
+            lower.indexOf('failed to connect') !== -1
+          );
+        }
+
+        window.addEventListener('unhandledrejection', function(event) {
+          if (isViteOrWsError(event.reason) || isViteOrWsError(event)) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }
+        }, true);
+
+        window.addEventListener('error', function(event) {
+          if (isViteOrWsError(event.error) || isViteOrWsError(event.message)) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }
+        }, true);
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ALL JAIHO COMPANY - Official Real Cash Gaming Directory</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

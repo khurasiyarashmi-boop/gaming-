@@ -1,0 +1,6 @@
+{
+  "name": "GameHub APK - Premier Real Cash & Gaming Directory",
+  "description": "Mobile-first gaming directory and APK download platform featuring verified gaming apps, sign-up bonuses, fast downloads, admin panel, dynamic filters, and real cash games.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
