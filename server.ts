@@ -104,11 +104,10 @@ let db: DatabaseSchema = {
 
 function loadDatabase() {
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    if (fs.existsSync(DB_FILE)) {
-      const data = fs.readFileSync(DB_FILE, 'utf-8');
+    const tmpFile = path.join('/tmp', 'data', 'db.json');
+    const targetFile = (process.env.VERCEL && fs.existsSync(tmpFile)) ? tmpFile : DB_FILE;
+    if (fs.existsSync(targetFile)) {
+      const data = fs.readFileSync(targetFile, 'utf-8');
       const parsed = JSON.parse(data);
       if (parsed) {
         db = {
@@ -139,10 +138,12 @@ function loadDatabase() {
 
 function saveDatabase() {
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    const targetDir = process.env.VERCEL ? path.join('/tmp', 'data') : DATA_DIR;
+    const targetFile = process.env.VERCEL ? path.join('/tmp', 'data', 'db.json') : DB_FILE;
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
     }
-    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
+    fs.writeFileSync(targetFile, JSON.stringify(db, null, 2), 'utf-8');
   } catch (err) {
     console.error('Failed to save database:', err);
   }
@@ -329,7 +330,8 @@ const authenticateAdmin = (req: any, res: any, next: any) => {
 // Admin Login
 app.post('/api/admin/login', (req, res) => {
   const { username, password } = req.body;
-  if (username === 'admin' && password === 'admin123') {
+  const adminPassword = process.env.ADMIN_PASSWORD || 'admin9300';
+  if (username === 'admin' && password === adminPassword) {
     const token = jwt.sign({ role: 'admin', user: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
     return res.json({ success: true, token, user: { username: 'admin', role: 'Super Admin' } });
   }
@@ -712,6 +714,10 @@ async function startServer() {
   });
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;
 
 

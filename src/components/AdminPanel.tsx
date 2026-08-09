@@ -47,7 +47,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   siteSettings
 }) => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('admin_token'));
-  const [loginCreds, setLoginCreds] = useState({ username: 'admin', password: 'admin123' });
+  const [loginCreds, setLoginCreds] = useState({ username: '', password: '' });
   const [loginError, setLoginError] = useState('');
   const [activeTab, setActiveTab] = useState<
     'dashboard' | 'games' | 'add_game' | 'categories' | 'media' | 'links' | 'settings' | 'messages'
@@ -758,10 +758,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               >
                 Sign In To Dashboard
               </button>
-
-              <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-900 text-center font-semibold">
-                🔑 Credentials: <strong>admin</strong> / <strong>admin123</strong>
-              </div>
             </form>
           </div>
         ) : (
