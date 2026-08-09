@@ -20,7 +20,6 @@ import { FloatingTelegramButton } from './components/FloatingTelegramButton';
 import { Footer } from './components/Footer';
 import { PagesModal } from './components/PagesModal';
 import { AdminPanel } from './components/AdminPanel';
-import { DriveModal } from './components/DriveModal';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { Gamepad2, Sparkles, AlertTriangle, RefreshCw, Plus } from 'lucide-react';
 
@@ -29,7 +28,6 @@ export default function App() {
   const [activeNavView, setActiveNavView] = useState<string>('home');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
-  const [isDriveOpen, setIsDriveOpen] = useState(false);
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
 
   // Filters & Search
@@ -240,7 +238,6 @@ export default function App() {
           if (searchInput) searchInput.focus();
         }}
         onOpenAdmin={() => setIsAdminOpen(true)}
-        onOpenDrive={() => setIsDriveOpen(true)}
         onOpenFavorites={() => setShowOnlyFavorites(!showOnlyFavorites)}
         favoriteCount={favorites.length}
         onNavigate={handleNavigate}
@@ -471,15 +468,6 @@ export default function App() {
         onClose={() => setIsAdminOpen(false)}
         onDataChanged={fetchData}
         siteSettings={siteSettings}
-        onOpenDrive={() => setIsDriveOpen(true)}
-      />
-
-      {/* GOOGLE DRIVE & CLOUD STORAGE MODAL */}
-      <DriveModal
-        isOpen={isDriveOpen}
-        onClose={() => setIsDriveOpen(false)}
-        onShowToast={(msg, type) => addToast(msg, type)}
-        onDataRestored={fetchData}
       />
     </div>
   );

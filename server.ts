@@ -4,10 +4,6 @@ import fs from 'fs';
 import jwt from 'jsonwebtoken';
 import { createServer as createViteServer } from 'vite';
 import { Game, Category, SiteSettings, ContactMessage, MediaItem, AppStatus } from './src/types';
-import { db as sqlDb } from './src/db/index.ts';
-import * as sqlSchema from './src/db/schema.ts';
-import { eq } from 'drizzle-orm';
-import { requireAuth, optionalAuth, AuthRequest } from './src/middleware/auth.ts';
 
 const app = express();
 const PORT = 3000;
@@ -106,133 +102,6 @@ let db: DatabaseSchema = {
   ]
 };
 
-async function syncWithCloudSql() {
-  if (!process.env.SQL_HOST) return;
-  try {
-    // Load categories from Cloud SQL
-    const sqlCats = await sqlDb.select().from(sqlSchema.categories);
-    if (sqlCats && sqlCats.length > 0) {
-      db.categories = sqlCats.map(c => ({
-        id: c.id,
-        name: c.name,
-        slug: c.slug,
-        icon: c.icon,
-        description: c.description,
-        gameCount: c.gameCount || 0
-      }));
-    } else if (db.categories && db.categories.length > 0) {
-      // Seed categories to Cloud SQL
-      for (const cat of db.categories) {
-        await sqlDb.insert(sqlSchema.categories).values({
-          id: cat.id,
-          name: cat.name,
-          slug: cat.slug,
-          icon: cat.icon,
-          description: cat.description,
-          gameCount: cat.gameCount || 0
-        }).onConflictDoNothing();
-      }
-    }
-
-    // Load games from Cloud SQL
-    const sqlGames = await sqlDb.select().from(sqlSchema.games);
-    if (sqlGames && sqlGames.length > 0) {
-      db.games = sqlGames.map(g => ({
-        id: g.id,
-        ranking: g.ranking || 0,
-        name: g.name,
-        slug: g.slug,
-        logo: g.logo,
-        poster: g.poster || undefined,
-        banner: g.banner || undefined,
-        screenshots: (g.screenshots as string[]) || [],
-        shortDescription: g.shortDescription || '',
-        description: g.description,
-        category: g.category,
-        bonus: g.bonus || 0,
-        bonusLabel: g.bonusLabel || undefined,
-        minWithdrawal: g.minWithdrawal || 100,
-        rating: g.rating || 4.5,
-        version: g.version || 'v1.0.0',
-        apkSize: g.apkSize || '35 MB',
-        packageName: g.packageName || undefined,
-        developerName: g.developerName || undefined,
-        downloadCount: g.downloadCount || 0,
-        clickCount: g.clickCount || 0,
-        lastUpdated: g.lastUpdated || '',
-        createdAt: g.createdAt || undefined,
-        updatedAt: g.updatedAt || undefined,
-        downloadType: (g.downloadType as any) || 'GOOGLE_PLAY',
-        downloadUrl: g.downloadUrl,
-        googlePlayUrl: g.googlePlayUrl || undefined,
-        officialWebsiteUrl: g.officialWebsiteUrl || undefined,
-        directDownloadUrl: g.directDownloadUrl || undefined,
-        externalStoreUrl: g.externalStoreUrl || undefined,
-        telegramGroup: g.telegramGroup || undefined,
-        officialWebsite: g.officialWebsite || undefined,
-        isFeatured: g.isFeatured || false,
-        isTrending: g.isTrending || false,
-        isNew: g.isNew || false,
-        status: (g.status as any) || 'published',
-        features: (g.features as string[]) || [],
-        withdrawalRules: (g.withdrawalRules as string[]) || [],
-        registrationGuide: (g.registrationGuide as string[]) || [],
-        faqs: (g.faqs as any) || [],
-        reviews: (g.reviews as any) || []
-      }));
-    } else if (db.games && db.games.length > 0) {
-      // Seed games to Cloud SQL
-      for (const game of db.games) {
-        await sqlDb.insert(sqlSchema.games).values({
-          id: game.id,
-          ranking: game.ranking,
-          name: game.name,
-          slug: game.slug || game.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-          logo: game.logo,
-          poster: game.poster,
-          banner: game.banner,
-          screenshots: game.screenshots,
-          shortDescription: game.shortDescription,
-          description: game.description,
-          category: game.category,
-          bonus: game.bonus,
-          bonusLabel: game.bonusLabel,
-          minWithdrawal: game.minWithdrawal,
-          rating: game.rating,
-          version: game.version,
-          apkSize: game.apkSize,
-          packageName: game.packageName,
-          developerName: game.developerName,
-          downloadCount: game.downloadCount,
-          clickCount: game.clickCount || 0,
-          lastUpdated: game.lastUpdated,
-          createdAt: game.createdAt,
-          updatedAt: game.updatedAt,
-          downloadType: game.downloadType || 'GOOGLE_PLAY',
-          downloadUrl: game.downloadUrl,
-          googlePlayUrl: game.googlePlayUrl,
-          officialWebsiteUrl: game.officialWebsiteUrl,
-          directDownloadUrl: game.directDownloadUrl,
-          externalStoreUrl: game.externalStoreUrl,
-          telegramGroup: game.telegramGroup,
-          officialWebsite: game.officialWebsite,
-          isFeatured: game.isFeatured || false,
-          isTrending: game.isTrending || false,
-          isNew: game.isNew || false,
-          status: game.status || 'published',
-          features: game.features || [],
-          withdrawalRules: game.withdrawalRules || [],
-          registrationGuide: game.registrationGuide || [],
-          faqs: game.faqs || [],
-          reviews: game.reviews || []
-        }).onConflictDoNothing();
-      }
-    }
-  } catch (err) {
-    console.error('Cloud SQL sync failed, using file db:', err);
-  }
-}
-
 function loadDatabase() {
   try {
     if (!fs.existsSync(DATA_DIR)) {
@@ -263,7 +132,6 @@ function loadDatabase() {
     } else {
       saveDatabase();
     }
-    syncWithCloudSql().catch(err => console.error('Cloud SQL initial sync error:', err));
   } catch (err) {
     console.error('Failed to load database, using defaults:', err);
   }
@@ -281,95 +149,6 @@ function saveDatabase() {
 }
 
 loadDatabase();
-
-// Firebase Auth user sync route for Cloud SQL
-app.post('/api/auth/sync', requireAuth, async (req: AuthRequest, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-    const { uid, email, name, picture } = req.user;
-    if (process.env.SQL_HOST) {
-      await sqlDb.insert(sqlSchema.users)
-        .values({
-          uid,
-          email: email || '',
-          displayName: name || '',
-          photoURL: picture || ''
-        })
-        .onConflictDoUpdate({
-          target: sqlSchema.users.uid,
-          set: {
-            email: email || '',
-            displayName: name || '',
-            photoURL: picture || '',
-            updatedAt: new Date()
-          }
-        });
-    }
-    res.json({ success: true, user: { uid, email, name } });
-  } catch (err: any) {
-    console.error('User sync error:', err);
-    res.status(500).json({ error: err.message || 'Failed to sync user' });
-  }
-});
-
-// Google Drive Backup History Endpoint (stored in Cloud SQL / Local)
-app.get('/api/drive/backups', optionalAuth, async (req: AuthRequest, res) => {
-  try {
-    if (process.env.SQL_HOST && req.user) {
-      const userRecord = await sqlDb.select().from(sqlSchema.users).where(eq(sqlSchema.users.uid, req.user.uid));
-      if (userRecord.length > 0) {
-        const backups = await sqlDb.select().from(sqlSchema.driveBackups).where(eq(sqlSchema.driveBackups.userId, userRecord[0].id));
-        return res.json(backups);
-      }
-    }
-    res.json([]);
-  } catch (err) {
-    console.error('Get drive backups error:', err);
-    res.json([]);
-  }
-});
-
-app.post('/api/drive/backups', requireAuth, async (req: AuthRequest, res) => {
-  try {
-    const { fileId, fileName, webViewLink, size, description } = req.body;
-    if (!fileId || !fileName) {
-      return res.status(400).json({ error: 'fileId and fileName are required' });
-    }
-    if (process.env.SQL_HOST && req.user) {
-      let userRecord = await sqlDb.select().from(sqlSchema.users).where(eq(sqlSchema.users.uid, req.user.uid));
-      let userId: number | null = null;
-      if (userRecord.length === 0) {
-        const inserted = await sqlDb.insert(sqlSchema.users).values({
-          uid: req.user.uid,
-          email: req.user.email || '',
-          displayName: req.user.name || '',
-          photoURL: req.user.picture || ''
-        }).returning();
-        userId = inserted[0]?.id || null;
-      } else {
-        userId = userRecord[0].id;
-      }
-
-      const backup = await sqlDb.insert(sqlSchema.driveBackups).values({
-        userId,
-        fileId,
-        fileName,
-        webViewLink,
-        size: size || '10 KB',
-        description: description || 'ALL JAIHO COMPANY Backup'
-      }).returning();
-
-      return res.json({ success: true, backup: backup[0] });
-    }
-    res.json({ success: true, backup: { fileId, fileName, webViewLink } });
-  } catch (err: any) {
-    console.error('Save drive backup record error:', err);
-    res.status(500).json({ error: err.message || 'Failed to record backup' });
-  }
-});
-
 
 // API ROUTES
 

@@ -33,22 +33,18 @@ import {
   ChevronRight
 } from 'lucide-react';
 
-import { HardDrive } from 'lucide-react';
-
 interface AdminPanelProps {
   isOpen: boolean;
   onClose: () => void;
   onDataChanged: () => void;
   siteSettings: SiteSettings;
-  onOpenDrive?: () => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
   isOpen,
   onClose,
   onDataChanged,
-  siteSettings,
-  onOpenDrive
+  siteSettings
 }) => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('admin_token'));
   const [loginCreds, setLoginCreds] = useState({ username: 'admin', password: 'admin123' });
@@ -701,16 +697,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {onOpenDrive && (
-              <button
-                onClick={onOpenDrive}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-extrabold transition-colors shadow-xs cursor-pointer"
-                title="Manage Google Drive Backups & Files"
-              >
-                <HardDrive className="w-3.5 h-3.5" />
-                <span>Google Drive & Cloud SQL</span>
-              </button>
-            )}
             {token && (
               <button
                 onClick={handleLogout}

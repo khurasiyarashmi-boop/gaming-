@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Search, ShieldCheck, Send, Lock, Sparkles, Heart, HardDrive } from 'lucide-react';
+import { Menu, Search, ShieldCheck, Send, Lock, Sparkles, Heart } from 'lucide-react';
 
 interface HeaderProps {
   siteName: string;
@@ -8,7 +8,6 @@ interface HeaderProps {
   onOpenSearch: () => void;
   onOpenAdmin: () => void;
   onOpenFavorites: () => void;
-  onOpenDrive?: () => void;
   favoriteCount: number;
   onNavigate?: (view: string) => void;
   activeView?: string;
@@ -21,7 +20,6 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSearch,
   onOpenAdmin,
   onOpenFavorites,
-  onOpenDrive,
   favoriteCount,
   onNavigate,
   activeView = 'home'
@@ -132,18 +130,6 @@ export const Header: React.FC<HeaderProps> = ({
             <Send className="w-3.5 h-3.5" />
             <span>Telegram</span>
           </a>
-
-          {/* Google Drive & Cloud SQL Storage trigger */}
-          {onOpenDrive && (
-            <button
-              onClick={onOpenDrive}
-              className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition-colors flex items-center gap-1.5 text-xs font-bold"
-              title="Google Drive Storage & Backups"
-            >
-              <HardDrive className="w-5 h-5 text-blue-600" />
-              <span className="hidden lg:inline">Drive & Cloud SQL</span>
-            </button>
-          )}
 
           {/* Admin Login Portal trigger */}
           <button
